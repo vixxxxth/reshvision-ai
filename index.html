@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport"
+content="width=device-width, initial-scale=1.0">
+
+<title>FreshVision AI</title>
+
+<style>
+
+*{
+    box-sizing:border-box;
+}
+
+body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#07130d;
+    color:white;
+}
+
+header{
+    padding:22px 7%;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    border-bottom:1px solid #234330;
+}
+
+.logo{
+    font-size:25px;
+    font-weight:bold;
+}
+
+.logo span{
+    color:#66e58a;
+}
+
+.status{
+    color:#66e58a;
+}
+
+main{
+    max-width:1250px;
+    margin:auto;
+    padding:40px 25px;
+}
+
+.hero{
+    margin-bottom:30px;
+}
+
+.hero h1{
+    font-size:40px;
+    margin-bottom:8px;
+}
+
+.hero p{
+    color:#9ab3a2;
+}
+
+.grid{
+    display:grid;
+    grid-template-columns:1.4fr 1fr;
+    gap:25px;
+}
+
+.card{
+    background:#0d1d14;
+    border:1px solid #244431;
+    border-radius:18px;
+    padding:20px;
+}
+
+video{
+    width:100%;
+    border-radius:14px;
+    background:black;
+}
+
+button{
+    margin-top:18px;
+    width:100%;
+    padding:15px;
+    border:none;
+    border-radius:10px;
+    background:#55d87a;
+    color:#041109;
+    font-weight:bold;
+    font-size:16px;
+    cursor:pointer;
+}
+
+button:hover{
+    background:#70ec91;
+}
+
+.result{
+    padding:14px 0;
+    border-bottom:1px solid #203d2b;
+}
+
+.result span{
+    color:#8fa99a;
+}
+
+.value{
+    float:right;
+    color:white;
+    font-weight:bold;
+}
+
+.processing{
+    color:#66e58a;
+}
+
+#preview{
+    width:100%;
+    margin-top:15px;
+    border-radius:12px;
+    display:none;
+}
+
+canvas{
+    display:none;
+}
+
+@media(max-width:800px){
+
+    .grid{
+        grid-template-columns:1fr;
+    }
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+<header>
+
+<div class="logo">
+🥬 FreshVision <span>AI</span>
+</div>
+
+<div class="status">
+● CAMERA SYSTEM
+</div>
+
+</header>
+
+
+<main>
+
+<div class="hero">
+
+<h1>Intelligent Produce Quality Analysis</h1>
+
+<p>
+Computer Vision • Image Processing • Machine Learning
+• Ripeness & Freshness Assessment
+</p>
+
+</div>
+
+
+<div class="grid">
+
+
+<div class="card">
+
+<h2>📷 Live Produce Scanner</h2>
+
+<video
+id="camera"
+autoplay
+playsinline>
+</video>
+
+<canvas id="canvas"></canvas>
+
+<img id="preview">
+
+<button onclick="captureAndAnalyze()">
+🔍 ANALYZE PRODUCE
+</button>
+
+</div>
+
+
+<div class="card">
+
+<h2>AI Analysis</h2>
+
+<div id="waiting">
+
+<p style="color:#8fa99a">
+Place a fruit or vegetable clearly in front of
+the camera and press Analyze Produce.
+</p>
+
+</div>
+
+
+<div id="results" style="display:none">
+
+<div class="result-card">
+    <h3>AI Fruit Recognition</h3>
+    <p>Predicted fruit: <b id="prediction">Not analyzed</b></p>
+    <p>Confidence: <b id="confidence">Not available</b></p>
+    <p>Ripeness: <b id="ripeness">Requires a trained model</b></p>
+<p>Estimated time to ripen: <b id="daysToRipe">Not analyzed</b></p>
+<p>Detection source: <b id="fruitSource">Not analyzed</b></p>
+</div>
+
+
+<div class="result">
+<span>Processing Status</span>
+<b class="value processing">
+COMPLETED
+</b>
+</div>
+
+<div class="result">
+<span>Average Red</span>
+<b id="red" class="value"></b>
+</div>
+
+<div class="result">
+<span>Average Green</span>
+<b id="green" class="value"></b>
+</div>
+
+<div class="result">
+<span>Average Blue</span>
+<b id="blue" class="value"></b>
+</div>
+
+<div class="result">
+<span>Hue</span>
+<b id="hue" class="value"></b>
+</div>
+
+<div class="result">
+<span>Saturation</span>
+<b id="saturation" class="value"></b>
+</div>
+
+<div class="result">
+<span>Brightness</span>
+<b id="brightness" class="value"></b>
+</div>
+
+<div class="result">
+<span>Texture Score</span>
+<b id="texture" class="value"></b>
+</div>
+
+<div class="result">
+<span>Edge Density</span>
+<b id="edges" class="value"></b>
+</div>
+
+<div class="result">
+<span>Dark Surface Area</span>
+<b id="dark" class="value"></b>
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</main>
+
+
+<script>
+
+const video =
+document.getElementById("camera");
+
+const canvas =
+document.getElementById("canvas");
+
+const context =
+canvas.getContext("2d");
+
+
+async function startCamera(){
+
+    try{
+
+        const stream =
+        await navigator.mediaDevices.getUserMedia({
+
+            video:{
+                width:{ideal:1280},
+                height:{ideal:720}
+            },
+
+            audio:false
+
+        });
+
+        video.srcObject = stream;
+
+    }
+
+    catch(error){
+
+        alert(
+            "Camera permission failed. " +
+            "Please allow camera access in Safari."
+        );
+
+        console.error(error);
+
+    }
+
+}
+
+
+async function captureAndAnalyze(){
+
+    canvas.width =
+        video.videoWidth;
+
+    canvas.height =
+        video.videoHeight;
+
+    context.drawImage(
+        video,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+    const image =
+        canvas.toDataURL(
+            "image/jpeg",
+            0.9
+        );
+
+
+    const response =
+        await fetch("/analyze",{
+
+            method:"POST",
+
+            headers:{
+                "Content-Type":
+                "application/json"
+            },
+
+            body:JSON.stringify({
+                image:image
+            })
+
+        });
+
+
+    const data =
+        await response.json();
+
+
+    if(data.status === "success"){
+
+        const f = data.features;
+        const ai = data.recognition;
+
+document.getElementById("prediction").innerText =
+    ai ? ai.predicted_label : "No prediction available";
+
+document.getElementById("confidence").innerText =
+    ai && ai.model_score_percent !== null
+        ? ai.model_score_percent + "%"
+        : "Not confidently identified";
+
+document.getElementById("ripeness").innerText =
+    ai ? ai.ripeness : "Requires a trained ripeness model";
+    document.getElementById("daysToRipe").innerText =
+        ai && ai.days_to_ripe ? ai.days_to_ripe : "Not available";
+
+    document.getElementById("fruitSource").innerText =
+        ai && ai.detection_source ? ai.detection_source : "Not available";
+
+
+        document.getElementById(
+            "waiting"
+        ).style.display="none";
+
+        document.getElementById(
+            "results"
+        ).style.display="block";
+
+
+        document.getElementById("red")
+            .innerText=f.red;
+
+        document.getElementById("green")
+            .innerText=f.green;
+
+        document.getElementById("blue")
+            .innerText=f.blue;
+
+        document.getElementById("hue")
+            .innerText=f.hue;
+
+        document.getElementById("saturation")
+            .innerText=f.saturation;
+
+        document.getElementById("brightness")
+            .innerText=f.brightness;
+
+        document.getElementById("texture")
+            .innerText=f.texture;
+
+        document.getElementById("edges")
+            .innerText=f.edge_density+"%";
+
+        document.getElementById("dark")
+            .innerText=f.dark_area+"%";
+
+    }
+
+}
+
+
+startCamera();
+
+</script>
+
+
+</body>
+</html>
