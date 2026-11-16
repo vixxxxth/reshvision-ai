@@ -1,444 +1,219 @@
+
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
 <meta charset="UTF-8">
-
-<meta name="viewport"
-content="width=device-width, initial-scale=1.0">
-
-<title>FreshVision AI</title>
-
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FreshVision AI | Smart Produce Scanner</title>
 <style>
-
-*{
-    box-sizing:border-box;
-}
-
-body{
-    margin:0;
-    font-family:Arial,Helvetica,sans-serif;
-    background:#07130d;
-    color:white;
-}
-
-header{
-    padding:22px 7%;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    border-bottom:1px solid #234330;
-}
-
-.logo{
-    font-size:25px;
-    font-weight:bold;
-}
-
-.logo span{
-    color:#66e58a;
-}
-
-.status{
-    color:#66e58a;
-}
-
-main{
-    max-width:1250px;
-    margin:auto;
-    padding:40px 25px;
-}
-
-.hero{
-    margin-bottom:30px;
-}
-
-.hero h1{
-    font-size:40px;
-    margin-bottom:8px;
-}
-
-.hero p{
-    color:#9ab3a2;
-}
-
-.grid{
-    display:grid;
-    grid-template-columns:1.4fr 1fr;
-    gap:25px;
-}
-
-.card{
-    background:#0d1d14;
-    border:1px solid #244431;
-    border-radius:18px;
-    padding:20px;
-}
-
-video{
-    width:100%;
-    border-radius:14px;
-    background:black;
-}
-
-button{
-    margin-top:18px;
-    width:100%;
-    padding:15px;
-    border:none;
-    border-radius:10px;
-    background:#55d87a;
-    color:#041109;
-    font-weight:bold;
-    font-size:16px;
-    cursor:pointer;
-}
-
-button:hover{
-    background:#70ec91;
-}
-
-.result{
-    padding:14px 0;
-    border-bottom:1px solid #203d2b;
-}
-
-.result span{
-    color:#8fa99a;
-}
-
-.value{
-    float:right;
-    color:white;
-    font-weight:bold;
-}
-
-.processing{
-    color:#66e58a;
-}
-
-#preview{
-    width:100%;
-    margin-top:15px;
-    border-radius:12px;
-    display:none;
-}
-
-canvas{
-    display:none;
-}
-
-@media(max-width:800px){
-
-    .grid{
-        grid-template-columns:1fr;
-    }
-
-}
-
+:root{--bg:#071810;--panel:#10281c;--green:#8af0a7;--text:#f4fff6;--muted:#afc5b5}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(circle at top right,#1a5834,var(--bg) 55%);color:var(--text);font-family:Arial,sans-serif}
+header{padding:22px 7%;border-bottom:1px solid #31533b;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.brand{font-size:23px;font-weight:bold}.brand span{color:var(--green)}
+.badge{font-size:12px;color:var(--green);border:1px solid #42694c;border-radius:30px;padding:8px 12px}
+main{max-width:1100px;margin:auto;padding:25px 18px}
+.hero{padding:40px 25px;border:1px solid #31543b;border-radius:22px;background:linear-gradient(120deg,#102d1c,#19472b);margin-bottom:22px;animation:fade .7s}
+.hero small{color:var(--green);letter-spacing:2px;text-transform:uppercase;font-weight:bold}
+h1{font-size:clamp(30px,5vw,48px);margin:14px 0;line-height:1.12}
+.hero p{color:var(--muted);max-width:620px;line-height:1.7}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes float{50%{transform:translateY(-8px)}}
+.fruit{font-size:50px;animation:float 3s infinite ease-in-out}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.card{background:var(--panel);border:1px solid #31533b;border-radius:20px;padding:22px;min-width:0}
+h2{margin-top:0;font-size:21px}
+.muted{color:var(--muted);font-size:14px;line-height:1.6}
+.preview{height:270px;background:#030906;border:1px solid #355540;border-radius:14px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+video,img#photo{width:100%;height:100%;object-fit:contain;display:none}
+.placeholder{text-align:center;color:var(--muted)}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:13px}
+button,.upload{border:0;border-radius:11px;padding:13px;font-weight:bold;font-size:14px;cursor:pointer;text-align:center}
+button{background:var(--green);color:#092014}
+.secondary,.upload{background:#234630;color:white;border:1px solid #42694c}
+.upload input{display:none}
+#analyze{width:100%;margin-top:10px;padding:15px}
+.result{padding:15px;background:#091d12;border:1px solid #31533b;border-radius:13px;margin-top:12px;overflow-wrap:anywhere}
+.result h3{margin:0 0 8px;color:var(--green);font-size:14px}
+.result p{margin:0;line-height:1.6}
+.warning{margin-top:14px;padding:12px;border-radius:10px;background:#352b16;color:#ffe4a5;font-size:12px;line-height:1.6}
+#busy,#error{display:none;margin-top:12px;line-height:1.5}
+#busy{color:var(--green)}#error{color:#ffb8a8}
+footer{text-align:center;padding:25px;color:var(--muted);font-size:12px}
+@media(max-width:750px){.grid{grid-template-columns:1fr}.hero{padding:28px 20px}header{padding:18px}.preview{height:230px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
-
 </head>
-
-
 <body>
-
 <header>
-
-<div class="logo">
-🥬 FreshVision <span>AI</span>
-</div>
-
-<div class="status">
-● CAMERA SYSTEM
-</div>
-
+ <div class="brand">🌿 FreshVision <span>AI</span></div>
+ <div class="badge">SMART PRODUCE SCANNER</div>
 </header>
 
-
 <main>
-
-<div class="hero">
-
-<h1>Intelligent Produce Quality Analysis</h1>
-
-<p>
-Computer Vision • Image Processing • Machine Learning
-• Ripeness & Freshness Assessment
-</p>
-
-</div>
-
+<section class="hero">
+ <div class="fruit" id="fruit">🥑</div>
+ <small id="eyebrow">AI-powered produce insights</small>
+ <h1 id="headline">A fresher way to understand your food.</h1>
+ <p id="intro">Scan fruits and vegetables to explore AI recognition, visual condition clues and helpful storage recommendations.</p>
+</section>
 
 <div class="grid">
+<section class="card">
+ <h2>📷 Scan your produce</h2>
+ <p class="muted">Use your camera or choose a photo with one item clearly visible.</p>
+ <div class="preview">
+  <video id="camera" autoplay playsinline muted></video>
+  <img id="photo" alt="Selected produce">
+  <div id="placeholder" class="placeholder">
+   <div style="font-size:40px">📸</div>
+   Camera preview
+  </div>
+ </div>
+ <div class="controls">
+  <button class="secondary" id="start" type="button">Start camera</button>
+  <label class="upload">Upload photo
+   <input id="file" type="file" accept="image/*">
+  </label>
+ </div>
+ <button id="analyze" type="button">✨ Analyze image</button>
+ <p id="busy">Analyzing… the first model load may take longer.</p>
+ <p id="error" role="alert"></p>
+ <p class="muted">Allow camera access when prompted. If the camera is unavailable, upload a photo instead.</p>
+ <canvas id="canvas" hidden></canvas>
+</section>
 
-
-<div class="card">
-
-<h2>📷 Live Produce Scanner</h2>
-
-<video
-id="camera"
-autoplay
-playsinline>
-</video>
-
-<canvas id="canvas"></canvas>
-
-<img id="preview">
-
-<button onclick="captureAndAnalyze()">
-🔍 ANALYZE PRODUCE
-</button>
-
+<section class="card">
+ <h2>🔬 Analysis results</h2>
+ <p class="muted" id="status">Your results will appear here after scanning.</p>
+ <div class="result"><h3>PRODUCE IDENTIFICATION</h3><p id="prediction">Waiting for image…</p></div>
+ <div class="result"><h3>MODEL SCORE</h3><p id="confidence">Not available yet.</p></div>
+ <div class="result"><h3>RIPENESS CLUES</h3><p id="ripeness">Not analyzed.</p></div>
+ <div class="result"><h3>FRESHNESS CLUES</h3><p id="freshness">Not analyzed.</p></div>
+ <div class="result"><h3>STORAGE RECOMMENDATION</h3><p id="storage">Not available yet.</p></div>
+ <div class="result"><h3>TIME TO RIPE</h3><p id="days">No validated ripening-time model installed.</p></div>
+ <div class="result"><h3>TOP MODEL PREDICTIONS</h3><ol id="predictions"><li>Not available yet.</li></ol></div>
+ <div class="warning" id="warning">Experimental visual aid. Image classification scores are not calibrated confidence, and color alone cannot confirm freshness or ripeness.</div>
+</section>
 </div>
-
-
-<div class="card">
-
-<h2>AI Analysis</h2>
-
-<div id="waiting">
-
-<p style="color:#8fa99a">
-Place a fruit or vegetable clearly in front of
-the camera and press Analyze Produce.
-</p>
-
-</div>
-
-
-<div id="results" style="display:none">
-
-<div class="result-card">
-    <h3>AI Fruit Recognition</h3>
-    <p>Predicted fruit: <b id="prediction">Not analyzed</b></p>
-    <p>Confidence: <b id="confidence">Not available</b></p>
-    <p>Ripeness: <b id="ripeness">Requires a trained model</b></p>
-<p>Estimated time to ripen: <b id="daysToRipe">Not analyzed</b></p>
-<p>Detection source: <b id="fruitSource">Not analyzed</b></p>
-</div>
-
-
-<div class="result">
-<span>Processing Status</span>
-<b class="value processing">
-COMPLETED
-</b>
-</div>
-
-<div class="result">
-<span>Average Red</span>
-<b id="red" class="value"></b>
-</div>
-
-<div class="result">
-<span>Average Green</span>
-<b id="green" class="value"></b>
-</div>
-
-<div class="result">
-<span>Average Blue</span>
-<b id="blue" class="value"></b>
-</div>
-
-<div class="result">
-<span>Hue</span>
-<b id="hue" class="value"></b>
-</div>
-
-<div class="result">
-<span>Saturation</span>
-<b id="saturation" class="value"></b>
-</div>
-
-<div class="result">
-<span>Brightness</span>
-<b id="brightness" class="value"></b>
-</div>
-
-<div class="result">
-<span>Texture Score</span>
-<b id="texture" class="value"></b>
-</div>
-
-<div class="result">
-<span>Edge Density</span>
-<b id="edges" class="value"></b>
-</div>
-
-<div class="result">
-<span>Dark Surface Area</span>
-<b id="dark" class="value"></b>
-</div>
-
-</div>
-
-</div>
-
-</div>
-
 </main>
 
+<footer>FreshVision AI · Camera + Image Processing System</footer>
 
 <script>
+const camera=document.getElementById("camera");
+const photo=document.getElementById("photo");
+const canvas=document.getElementById("canvas");
+const ctx=canvas.getContext("2d");
+let stream=null,uploadedImage=null;
 
-const video =
-document.getElementById("camera");
+const slides=[
+ {emoji:"🥑",eyebrow:"AI-powered produce insights",title:"A fresher way to understand your food.",text:"Scan fruits and vegetables to explore AI recognition, visual condition clues and helpful storage recommendations."},
+ {emoji:"🍊",eyebrow:"Computer vision",title:"Turn your photo into useful clues.",text:"Explore image classification and visual color measurements in one simple scanning experience."},
+ {emoji:"🥦",eyebrow:"Smarter storage",title:"Make informed produce decisions.",text:"Get practical storage advice and cautious visual observations without invented ripening dates."}
+];
+let slide=0;
+function changeSlide(){
+ const s=slides[slide++%slides.length];
+ document.getElementById("fruit").textContent=s.emoji;
+ document.getElementById("eyebrow").textContent=s.eyebrow;
+ document.getElementById("headline").textContent=s.title;
+ document.getElementById("intro").textContent=s.text;
+}
+setInterval(changeSlide,5000);
 
-const canvas =
-document.getElementById("canvas");
-
-const context =
-canvas.getContext("2d");
-
-
-async function startCamera(){
-
-    try{
-
-        const stream =
-        await navigator.mediaDevices.getUserMedia({
-
-            video:{
-                width:{ideal:1280},
-                height:{ideal:720}
-            },
-
-            audio:false
-
-        });
-
-        video.srcObject = stream;
-
-    }
-
-    catch(error){
-
-        alert(
-            "Camera permission failed. " +
-            "Please allow camera access in Safari."
-        );
-
-        console.error(error);
-
-    }
-
+function showError(message){
+ const e=document.getElementById("error");
+ e.textContent=message;e.style.display="block";
+}
+function clearError(){
+ document.getElementById("error").style.display="none";
 }
 
+document.getElementById("start").onclick=async()=>{
+ clearError();
+ try{
+  if(!navigator.mediaDevices?.getUserMedia)
+   throw new Error("Camera unavailable. Please upload an image.");
+  stream=await navigator.mediaDevices.getUserMedia({video:true,audio:false});
+  camera.srcObject=stream;
+  await camera.play();
+  camera.style.display="block";photo.style.display="none";
+  document.getElementById("placeholder").style.display="none";
+  uploadedImage=null;
+ }catch(e){showError(e.message||"Allow camera access or upload an image.");}
+};
 
-async function captureAndAnalyze(){
+document.getElementById("file").onchange=e=>{
+ clearError();
+ const file=e.target.files[0];
+ if(!file)return;
+ if(!file.type.startsWith("image/")){showError("Please select an image.");return;}
+ const reader=new FileReader();
+ reader.onload=()=>{
+  uploadedImage=reader.result;photo.src=uploadedImage;
+  photo.style.display="block";camera.style.display="none";
+  document.getElementById("placeholder").style.display="none";
+ };
+ reader.onerror=()=>showError("Could not read the selected image.");
+ reader.readAsDataURL(file);
+};
 
-    canvas.width =
-        video.videoWidth;
-
-    canvas.height =
-        video.videoHeight;
-
-    context.drawImage(
-        video,
-        0,
-        0,
-        canvas.width,
-        canvas.height
-    );
-
-    const image =
-        canvas.toDataURL(
-            "image/jpeg",
-            0.9
-        );
-
-
-    const response =
-        await fetch("/analyze",{
-
-            method:"POST",
-
-            headers:{
-                "Content-Type":
-                "application/json"
-            },
-
-            body:JSON.stringify({
-                image:image
-            })
-
-        });
-
-
-    const data =
-        await response.json();
-
-
-    if(data.status === "success"){
-
-        const f = data.features;
-        const ai = data.recognition;
-
-document.getElementById("prediction").innerText =
-    ai ? ai.predicted_label : "No prediction available";
-
-document.getElementById("confidence").innerText =
-    ai && ai.model_score_percent !== null
-        ? ai.model_score_percent + "%"
-        : "Not confidently identified";
-
-document.getElementById("ripeness").innerText =
-    ai ? ai.ripeness : "Requires a trained ripeness model";
-    document.getElementById("daysToRipe").innerText =
-        ai && ai.days_to_ripe ? ai.days_to_ripe : "Not available";
-
-    document.getElementById("fruitSource").innerText =
-        ai && ai.detection_source ? ai.detection_source : "Not available";
-
-
-        document.getElementById(
-            "waiting"
-        ).style.display="none";
-
-        document.getElementById(
-            "results"
-        ).style.display="block";
-
-
-        document.getElementById("red")
-            .innerText=f.red;
-
-        document.getElementById("green")
-            .innerText=f.green;
-
-        document.getElementById("blue")
-            .innerText=f.blue;
-
-        document.getElementById("hue")
-            .innerText=f.hue;
-
-        document.getElementById("saturation")
-            .innerText=f.saturation;
-
-        document.getElementById("brightness")
-            .innerText=f.brightness;
-
-        document.getElementById("texture")
-            .innerText=f.texture;
-
-        document.getElementById("edges")
-            .innerText=f.edge_density+"%";
-
-        document.getElementById("dark")
-            .innerText=f.dark_area+"%";
-
-    }
-
+function getImage(){
+ if(uploadedImage)return uploadedImage;
+ if(!camera.videoWidth)throw new Error("Start the camera or upload a photo first.");
+ canvas.width=camera.videoWidth;canvas.height=camera.videoHeight;
+ ctx.drawImage(camera,0,0);
+ return canvas.toDataURL("image/jpeg",0.88);
+}
+function setText(id,value){
+ document.getElementById(id).textContent=
+  value===null||value===undefined||value===""?"Not available":value;
 }
 
-
-startCamera();
-
+document.getElementById("analyze").onclick=async()=>{
+ clearError();
+ const button=document.getElementById("analyze");
+ button.disabled=true;
+ document.getElementById("busy").style.display="block";
+ try{
+  const response=await fetch("/analyze",{
+   method:"POST",
+   headers:{"Content-Type":"application/json"},
+   body:JSON.stringify({image:getImage()})
+  });
+  const data=await response.json();
+  if(!response.ok||data.status!=="success")
+   throw new Error(data.error||"Analysis failed.");
+  const a=data.recognition||{};
+  setText("status","Analysis complete");
+  setText("prediction",a.predicted_label);
+  setText("confidence",a.model_score_percent==null
+   ?"No supported produce match"
+   :"Top ImageNet class score: "+a.model_score_percent+"%");
+  setText("ripeness",a.ripeness);
+  setText("freshness",a.freshness);
+  setText("storage",a.storage_recommendation);
+  setText("days",a.days_to_ripe);
+  setText("warning",a.warning);
+  const list=document.getElementById("predictions");
+  list.replaceChildren();
+  (a.top_predictions||[]).forEach(p=>{
+   const li=document.createElement("li");
+   li.textContent=p.label+" — "+p.score_percent+"%";
+   list.appendChild(li);
+  });
+  if(!list.children.length){
+   const li=document.createElement("li");
+   li.textContent="No predictions available.";
+   list.appendChild(li);
+  }
+ }catch(e){showError(e.message||"Could not analyze the image.");}
+ finally{
+  button.disabled=false;
+  document.getElementById("busy").style.display="none";
+ }
+};
 </script>
-
-
 </body>
 </html>
