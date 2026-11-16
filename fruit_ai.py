@@ -1,237 +1,247 @@
-import os
+
+import warnings
+
 import cv2
 import numpy as np
-import torch
 from PIL import Image
-from torchvision.models import (
-    mobilenet_v3_small,
-    MobileNet_V3_Small_Weights,
-)
-
-MODEL_PATH = os.path.expanduser(
-    "~/.cache/torch/hub/checkpoints/mobilenet_v3_small-047dcff4.pth"
-)
-
-weights = MobileNet_V3_Small_Weights.DEFAULT
-categories = weights.meta["categories"]
-preprocess = weights.transforms()
-model = None
-model_status = "Local model unavailable"
 
 try:
-    if os.path.isfile(MODEL_PATH):
-        model = mobilenet_v3_small(weights=None)
-        model.load_state_dict(
-            torch.load(MODEL_PATH, map_location="cpu", weights_only=True)
-        )
-        model.eval()
-        model_status = "Loaded offline"
-except Exception as exc:
-    model_status = f"Model unavailable: {type(exc).__name__}"
-    model = None
+    import torch
+    from torchvision.models import (
+        mobilenet_v3_small,
+        MobileNet_V3_Small_Weights,
+    )
+except Exception:
+    torch = None
+    mobilenet_v3_small = None
+    MobileNet_V3_Small_Weights = None
 
-PRODUCE = {
-    "avocado": "Avocado",
+
+_model = None
+_weights = None
+_categories = []
+_preprocess = None
+_model_status = "Model not loaded"
+
+LABEL_TO_PRODUCE = {
     "banana": "Banana",
-    "mango": "Mango",
-    "apple": "Apple",
-    "tomato": "Tomato",
-    "papaya": "Papaya",
-    "guava": "Guava",
-    "lemon": "Lemon",
+    "Granny Smith": "Apple",
     "orange": "Orange",
-    "strawberry": "Strawberry",
+    "lemon": "Lemon",
     "pineapple": "Pineapple",
-    "watermelon": "Watermelon",
+    "strawberry": "Strawberry",
+    "bell pepper": "Bell pepper",
     "cucumber": "Cucumber",
-    "brinjal": "Brinjal / Eggplant",
-    "potato": "Potato",
-    "onion": "Onion",
-    "bell_pepper": "Bell Pepper",
-    "other": "Other Produce",
-}
-
-# Classes the existing ImageNet model may recognize.
-CLASS_MAP = {
-    "banana": "banana",
-    "granny smith": "apple",
-    "red apple": "apple",
-    "orange": "orange",
-    "lemon": "lemon",
-    "pineapple": "pineapple",
-    "strawberry": "strawberry",
-    "fig": "other",
-    "jackfruit": "other",
-    "custard apple": "other",
-    "pomegranate": "other",
-    "bell pepper": "bell_pepper",
-    "cucumber": "cucumber",
-    "zucchini": "cucumber",
-    "potato": "potato",
-    "broccoli": "other",
-    "cauliflower": "other",
-    "head cabbage": "other",
-    "tomato": "tomato",
+    "zucchini": "Zucchini",
+    "broccoli": "Broccoli",
+    "cauliflower": "Cauliflower",
+    "head cabbage": "Cabbage",
+    "artichoke": "Artichoke",
+    "corn": "Corn",
+    "mushroom": "Mushroom",
+    "acorn squash": "Squash",
+    "fig": "Fig",
+    "pomegranate": "Pomegranate",
 }
 
 
-def get_colors(image):
-    if image is None or image.size == 0:
-        raise ValueError("Empty image")
+def load_model():
+    global _model, _weights, _categories
+    global _preprocess, _model_status
 
-    h, w = image.shape[:2]
-    crop = image[int(h * .2):int(h * .8), int(w * .2):int(w * .8)]
-    if crop.size == 0:
-        crop = image
+    if _model is not None:
+        return
 
-    hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
-    hue, sat, val = cv2.split(hsv)
+    if torch is None:
+        _model_status = "PyTorch is unavailable"
+        return
+
+    try:
+        _weights = MobileNet_V3_Small_Weights.DEFAULT
+        _categories = _weights.meta["categories"]
+        _preprocess = _weights.transforms()
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            _model = mobilenet_v3_small(weights=_weights)
+
+        _model.eval()
+        _model_status = "ImageNet MobileNetV3 Small loaded"
+
+    except Exception as exc:
+        _model = None
+        _model_status = "Model unavailable: " + type(exc).__name__
+
+
+def detect_produce(image_bgr):
+    load_model()
+
+    if _model is None:
+        return {
+            "label": None,
+            "score_percent": None,
+            "top_predictions": [],
+            "status": _model_status,
+        }
+
+    try:
+        rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
+        tensor = _preprocess(Image.fromarray(rgb)).unsqueeze(0)
+
+        with torch.inference_mode():
+            probabilities = _model(tensor).softmax(dim=1)[0]
+
+        values, indices = torch.topk(probabilities, 5)
+
+        top = [
+            {
+                "label": _categories[int(index)],
+                "score_percent": round(float(value) * 100, 2),
+            }
+            for value, index in zip(values, indices)
+        ]
+
+        first_label = top[0]["label"]
+        produce = None
+
+        for label, name in LABEL_TO_PRODUCE.items():
+            if label.lower() == first_label.lower():
+                produce = name
+                break
+
+        return {
+            "label": produce,
+            "score_percent": top[0]["score_percent"],
+            "top_predictions": top,
+            "status": _model_status,
+        }
+
+    except Exception as exc:
+        return {
+            "label": None,
+            "score_percent": None,
+            "top_predictions": [],
+            "status": "Inference error: " + type(exc).__name__,
+        }
+
+
+def get_color_features(image_bgr):
+    hsv = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2HSV)
+    hue, saturation, value = cv2.split(hsv)
     total = max(hue.size, 1)
 
-    def pct(mask):
-        return round(100 * np.count_nonzero(mask) / total, 1)
+    def percentage(mask):
+        return round(
+            100 * float(np.count_nonzero(mask)) / total, 1
+        )
 
     return {
-        "green": pct((hue >= 35) & (hue <= 85) & (sat >= 35)),
-        "yellow": pct((hue >= 20) & (hue < 35) & (sat >= 35) & (val >= 50)),
-        "orange": pct((hue >= 8) & (hue < 22) & (sat >= 45) & (val >= 45)),
-        "red": pct((((hue < 8) | (hue >= 170)) & (sat >= 45) & (val >= 40))),
-        "brown": pct((hue >= 5) & (hue <= 25) & (sat >= 35) & (val < 125)),
-        "dark": pct(val < 65),
-        "brightness": round(float(np.mean(val)), 1),
+        "green": percentage(
+            (hue >= 35) & (hue <= 85) & (saturation >= 35)
+        ),
+        "yellow": percentage(
+            (hue >= 20) & (hue < 35)
+            & (saturation >= 35) & (value >= 50)
+        ),
+        "brown": percentage(
+            (hue >= 5) & (hue <= 25)
+            & (saturation >= 25) & (value < 125)
+        ),
+        "dark": percentage(value < 65),
+        "brightness": round(float(np.mean(value)), 1),
     }
 
 
-def detect_produce(image):
-    if model is None:
-        return None, None, []
-
-    rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    tensor = preprocess(Image.fromarray(rgb)).unsqueeze(0)
-
-    with torch.no_grad():
-        probs = model(tensor).softmax(dim=1)[0]
-
-    values, indices = torch.topk(probs, 5)
-    top = [
-        {
-            "label": categories[int(i)],
-            "score": round(float(v) * 100, 2),
-        }
-        for v, i in zip(values, indices)
-    ]
-
-    for item in top:
-        label = item["label"].lower()
-        for keyword, produce in CLASS_MAP.items():
-            if keyword in label and item["score"] >= 15:
-                return produce, item["score"], top
-
-    return None, None, top
-
-
-def estimate_ripeness(kind, c):
-    g, y, o = c["green"], c["yellow"], c["orange"]
-    r, b, d = c["red"], c["brown"], c["dark"]
-
-    if kind == "banana":
-        if b >= 18 or d >= 35:
-            return "Possibly overripe", "0 days — already ripe or past ripe"
-        if y >= 12 and g < 10:
-            return "Likely ripe", "0 days — likely already ripe"
-        if y >= 8 and g >= 5:
-            return "Ripening", "Approximately 1–3 days"
-        if g >= 12:
-            return "Likely unripe", "Approximately 2–5 days"
-        return "Uncertain", "Cannot estimate reliably from color"
-
-    if kind == "avocado":
-        g = float(c.get("green", 0))
-        r = float(c.get("red", 0))
-        y = float(c.get("yellow", 0))
-        o = float(c.get("orange", 0))
-        d = float(c.get("dark", 0))
-        b = float(c.get("brown", 0))
-        warm = r + y + o
-    
-        # Color is only a rough clue; avocado varieties differ.
-        if d >= 35 or b >= 30:
-            return (
-                "Estimated ripeness: approximately 85% (possible overripe/damaged; low confidence)",
-                "No reliable days estimate; check firmness and inspect before eating"
-            )
-        elif g >= 35 and warm < 20 and d < 25 and b < 25:
-            return (
-                "Estimated ripeness: approximately 20% (possibly unripe; low confidence)",
-                "Approx. 3–6 days to ripen if firm; low-confidence estimate, check daily"
-            )
-        elif g >= 20 and warm < 25 and d < 30 and b < 25:
-            return (
-                "Estimated ripeness: approximately 55% (possibly approaching ripe; low confidence)",
-                "Approx. 1–3 days to ripen if still firm; low-confidence estimate, check daily"
-            )
+def assess_condition(kind, colors):
+    if not kind:
+        ripeness = "Unknown: produce was not confidently identified"
+    elif kind.lower() == "banana":
+        if colors["brown"] >= 12:
+            ripeness = "Brown areas detected; inspect the banana closely"
+        elif colors["yellow"] >= 15 and colors["green"] < 10:
+            ripeness = "Yellow color detected; check firmness to assess ripeness"
+        elif colors["green"] >= 12:
+            ripeness = "Green color detected; it may be less ripe"
         else:
-            return (
-                "Estimated ripeness: approximately 45% (uncertain; low confidence)",
-                "Approx. 2–4 days as a rough guide only; color is inconclusive, check firmness daily"
-            )
-
-    if kind == "apple":
-        if b >= 18 or d >= 35:
-            return (
-                "Dark or brown areas detected; inspect the apple",
-                "Not reliably predictable from color"
-            )
-        if r + y + o >= 18:
-            return (
-                "Red/yellow color detected; eating readiness unconfirmed",
-                "Days to ripe cannot be reliably estimated for apples"
-            )
-        return (
-            "Apple selected; color alone is inconclusive",
-            "Days to ripe cannot be reliably estimated for apples"
+            ripeness = "Ripeness is uncertain from color alone"
+    else:
+        ripeness = (
+            "Visual color recorded; ripeness cannot be confirmed "
+            "from this image alone"
         )
 
-    if kind in ("orange", "lemon", "pineapple", "guava"):
-        return "Color measured; variety matters", "Days to ripe unavailable reliably"
+    discoloration = colors["dark"] + colors["brown"]
 
-    if kind in ("watermelon", "cucumber", "brinjal", "potato",
-                "onion", "bell_pepper"):
-        return "Surface color measured", "Days to ripe unavailable reliably"
+    if discoloration >= 30:
+        freshness = (
+            "Dark or brown areas detected; inspect for damage or decay"
+        )
+    elif discoloration >= 15:
+        freshness = (
+            "Some discoloration detected; check smell and texture"
+        )
+    else:
+        freshness = (
+            "No strong dark-color signal detected; freshness is "
+            "not guaranteed"
+        )
 
-    return "Produce not confidently identified", "Unable to estimate"
+    return ripeness, freshness
 
 
-def recognize_fruit(image_bgr, produce_type="avocado"):
-    selected = str(produce_type or "avocado").lower().strip()
-    if selected not in PRODUCE:
-        selected = "other"
+def storage_advice(kind):
+    advice = {
+        "banana": "Keep green bananas at room temperature. Refrigerate ripe bananas to slow further ripening.",
+        "apple": "Refrigerate apples for longer storage.",
+        "orange": "Keep at room temperature briefly or refrigerate for longer storage.",
+        "lemon": "Refrigerate for longer storage.",
+        "avocado": "Ripen firm avocados at room temperature; refrigerate when ripe.",
+        "strawberry": "Refrigerate dry and unwashed; wash just before eating.",
+        "pineapple": "Refrigerate cut pineapple promptly.",
+        "cucumber": "Refrigerate and keep dry.",
+        "bell pepper": "Refrigerate in the crisper drawer.",
+        "broccoli": "Refrigerate promptly in a loose or perforated bag.",
+        "potato": "Store in a cool, dark, ventilated place.",
+        "mango": "Ripen at room temperature; refrigerate when ripe.",
+    }
 
-    colors = get_colors(image_bgr)
-    detected, score, top = detect_produce(image_bgr)
+    return advice.get(
+        (kind or "").lower(),
+        "Use produce-specific storage guidance. Refrigerate cut produce promptly.",
+    )
 
-    # The user-selected produce is authoritative.
-    # The general-purpose model is not reliable enough to override it.
-    kind = selected
-    source = "User selection; offline color analysis"
 
-    ripeness, days = estimate_ripeness(kind, colors)
+def analyze_produce(image_bgr):
+    colors = get_color_features(image_bgr)
+    detection = detect_produce(image_bgr)
+
+    label = detection["label"]
+    ripeness, freshness = assess_condition(label, colors)
 
     return {
-        "predicted_label": PRODUCE.get(kind, "Other Produce"),
-        "selected_produce": PRODUCE.get(selected, "Other Produce"),
-        "detection_source": source,
-        "model_score_percent": None,
-        "ripeness": ripeness,
-        "days_to_ripe": days,
-        "method": "Offline image classification + approximate color rules",
-        "warning": (
-            "Experimental estimate only. This model is not trained for "
-            "ripeness or days-to-ripen prediction. Results depend on "
-            "lighting, variety, temperature and storage conditions."
+        "predicted_label": label or "Not confidently identified",
+        "detection_source": (
+            "Pretrained ImageNet MobileNetV3 Small"
+            if label else "No supported produce label matched"
         ),
+        "model_score_percent": detection["score_percent"],
+        "confidence_note": (
+            "Raw ImageNet class score, not calibrated confidence "
+            "or ripeness confidence."
+        ),
+        "ripeness": ripeness,
+        "freshness": freshness,
+        "days_to_ripe": (
+            "Not available: no validated ripening-time model is installed."
+        ),
+        "storage_recommendation": storage_advice(label),
         "colors": colors,
-        "model_status": model_status,
+        "model_status": detection["status"],
         "model_is_trained_for_ripeness": False,
-        "top_predictions": top,
+        "top_predictions": detection["top_predictions"],
+        "warning": (
+            "Experimental visual aid only. This model is not trained "
+            "to assess produce freshness or ripeness. Lighting, variety "
+            "and background can affect results. Inspect produce yourself."
+        ),
     }
