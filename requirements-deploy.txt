@@ -1,7 +1,8 @@
-Flask
-numpy
-opencv-python-headless
-Pillow
-torch
-torchvision
-gunicorn
+
+Flask>=3.0,<4
+numpy>=1.26,<3
+opencv-python-headless>=4.9,<5
+Pillow>=10,<13
+torch>=2.2,<3
+torchvision>=0.17,<1
+gunicorn>=21,<24
